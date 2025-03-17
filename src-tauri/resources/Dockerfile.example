@@ -1,0 +1,32 @@
+# Using Alpine Linux as the base image (~5MB vs ~72MB for Ubuntu)
+FROM alpine:latest
+
+# Working directory setup
+WORKDIR /app
+
+# Environment variable definition
+ENV APP_NAME="MyApp"
+ENV VERSION="1.0"
+
+# Volume mount point declaration
+VOLUME /data
+
+# Port exposure
+EXPOSE 80
+
+# User management
+RUN addgroup -g 1000 appgroup && \
+    adduser -S -G appgroup -u 1000 appuser
+USER appuser
+
+# Single optimized RUN command for dependencies
+RUN apk add --no-cache curl
+
+# COPY command for static content
+COPY config.json /config.json
+
+# ADD command for remote content
+ADD https://example.com/script.sh /script.sh
+
+# CMD instruction for container startup
+CMD ["ash", "-c", "/script.sh"] 

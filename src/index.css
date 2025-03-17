@@ -139,3 +139,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Ensure minimum heights for the application */
+html, body, #root {
+  min-height: 700px;
+  height: 100%;
+}
+
+/* Ensure proper scrolling behavior */
+.overflow-auto {
+  overflow: auto !important;
+}
+
+/* Ensure sidebar sections have proper minimum heights */
+.sidebar-section {
+  min-height: 150px;
+}

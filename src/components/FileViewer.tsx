@@ -9,13 +9,12 @@ import {
 import type { DockerfileAnalysis, FileItem } from "../utils/types";
 import { Button } from "@/components/ui/button";
 import {
-	ContainerIcon,
 	Loader2,
-	Play,
 	Save,
 	Download,
 	Edit,
 	Check,
+	AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -88,6 +87,17 @@ const getFileType = (
 	return "text";
 };
 
+// Check if content is an error message from the backend
+const isBinaryFileError = (content: string): boolean => {
+	const binaryErrorPatterns = [
+		"Cannot display binary file",
+		"File contains invalid UTF-8",
+		"File is too large to display",
+	];
+
+	return binaryErrorPatterns.some((pattern) => content.includes(pattern));
+};
+
 // Generic file viewer/editor component
 const FileViewer: FC<FileViewerProps> = ({
 	file,
@@ -106,6 +116,7 @@ const FileViewer: FC<FileViewerProps> = ({
 	);
 
 	const fileType = getFileType(file?.name, explicitFileType);
+	const isBinaryError = isBinaryFileError(content);
 
 	// Load FiraCode font
 	useEffect(() => {
@@ -131,20 +142,8 @@ const FileViewer: FC<FileViewerProps> = ({
 		}
 	}, []);
 
-	// Debug logging for props
-	useEffect(() => {
-		console.log(
-			"FileViewer received content:",
-			content ? `${content.substring(0, 30)}...` : "none",
-		);
-		console.log("FileViewer content length:", content?.length || 0);
-		console.log("FileViewer isReadOnly:", isReadOnly);
-		console.log("FileViewer file:", file?.name);
-	}, [content, isReadOnly, file]);
-
 	const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
 		const newContent = e.target.value;
-		console.log("FileViewer content changed, new length:", newContent.length);
 		onChange?.(newContent);
 	};
 
@@ -195,7 +194,7 @@ const FileViewer: FC<FileViewerProps> = ({
 
 	// Generate line numbers and apply syntax highlighting
 	const renderLineNumbers = useCallback(() => {
-		if (!content) return null;
+		if (!content || isBinaryError) return null;
 
 		const lines = content.split("\n");
 
@@ -233,7 +232,7 @@ const FileViewer: FC<FileViewerProps> = ({
 				})}
 			</div>
 		);
-	}, [content, fileType]);
+	}, [content, fileType, isBinaryError]);
 
 	// If no file is selected
 	if (!file) {
@@ -263,7 +262,7 @@ const FileViewer: FC<FileViewerProps> = ({
 					)}
 				</div>
 				<div className="flex gap-2">
-					{!isReadOnly && (
+					{!isReadOnly && !isBinaryError && (
 						<Button
 							variant="outline"
 							size="sm"
@@ -278,33 +277,48 @@ const FileViewer: FC<FileViewerProps> = ({
 							{isEditing ? "View" : "Edit"}
 						</Button>
 					)}
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleDownload}
-						className="flex items-center gap-1"
-					>
-						<Download className="h-4 w-4" />
-						Download
-					</Button>
+					{!isBinaryError && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleDownload}
+							className="flex items-center gap-1"
+						>
+							<Download className="h-4 w-4" />
+							Download
+						</Button>
+					)}
 				</div>
 			</div>
 
 			<div className="flex-grow flex overflow-hidden">
-				<div className={cn(editorStyles.editor, "w-full")}>
-					{renderLineNumbers()}
-					<textarea
-						ref={editorRef}
-						value={content || ""}
-						onChange={handleChange}
-						readOnly={isReadOnly || !isEditing}
-						spellCheck={false}
-						className={editorStyles.textarea}
-					/>
-				</div>
+				{isBinaryError ? (
+					<div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
+						<AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+						<h3 className="text-lg font-semibold mb-2">Cannot Display File</h3>
+						<p className="text-gray-500 max-w-md">{content}</p>
+						<p className="text-gray-500 mt-4 text-sm">
+							This file may be binary or contain non-text content that cannot be
+							displayed in the browser. You can still download the file to view
+							it with an appropriate application.
+						</p>
+					</div>
+				) : (
+					<div className={cn(editorStyles.editor, "w-full")}>
+						{renderLineNumbers()}
+						<textarea
+							ref={editorRef}
+							value={content || ""}
+							onChange={handleChange}
+							readOnly={isReadOnly || !isEditing}
+							spellCheck={false}
+							className={editorStyles.textarea}
+						/>
+					</div>
+				)}
 			</div>
 
-			{isEditing && !isReadOnly && (
+			{isEditing && !isReadOnly && !isBinaryError && (
 				<div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
 					<div className="flex justify-end">
 						<Button
